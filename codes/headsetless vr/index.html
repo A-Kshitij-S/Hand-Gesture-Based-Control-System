@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NXS-2087</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    overflow: hidden;
+    background: #000;
+    font-family: ui-monospace, "SF Mono", "JetBrains Mono", "Courier New", monospace;
+    color: #d8d8e8;
+    -webkit-font-smoothing: antialiased;
+  }
+  #scene { position: fixed; inset: 0; cursor: crosshair; }
+
+  /* ========== COCKPIT OVERLAY — visible car interior ========== */
+  #cabin { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+
+  /* sun visor at the top */
+  #visor {
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 5%;
+    background: linear-gradient(to bottom, #02010a 0%, #0a031c 80%, transparent 100%);
+    border-bottom: 1px solid rgba(255, 45, 146, 0.35);
+    box-shadow: 0 1px 14px rgba(255, 45, 146, 0.18);
+  }
+
+  /* A-pillars — slim angled frames at the sides */
+  .pillar {
+    position: absolute;
+    top: 5%; bottom: 22%;
+    width: 7.5%;
+  }
+  .pillar.left  { left: 0;
+    background: linear-gradient(to right, #06021a 0%, #0a031f 65%, transparent 100%);
+    clip-path: polygon(0 0, 100% 0, 30% 100%, 0 100%);
+  }
+  .pillar.right { right: 0;
+    background: linear-gradient(to left, #06021a 0%, #0a031f 65%, transparent 100%);
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 70% 100%);
+  }
+  .pillar::after {
+    content: ""; position: absolute; top: 0; bottom: 0; width: 1px;
+    background: linear-gradient(to bottom, transparent, rgba(255,45,146,0.6), transparent);
+    box-shadow: 0 0 10px rgba(255,45,146,0.4);
+  }
+  .pillar.left::after  { right: 28%; transform: skewX(-16deg); }
+  .pillar.right::after { left:  28%; transform: skewX( 16deg); }
+
+  /* dashboard at the bottom — visible car interior */
+  #dashboard {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 22%;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255,45,146,0.10) 0%, transparent 50%),
+      linear-gradient(to bottom, #18092a 0%, #0c0420 50%, #02010a 100%);
+    border-top: 1px solid rgba(255, 45, 146, 0.45);
+    box-shadow:
+      0 -1px 0 rgba(0, 221, 255, 0.45) inset,
+      0 -16px 50px rgba(255, 45, 146, 0.18) inset;
+  }
+  /* dashboard scanlines */
+  #dashboard::before {
+    content: ""; position: absolute; inset: 0;
+    background: repeating-linear-gradient(0deg,
+      rgba(255,255,255,0.025) 0 1px, transparent 1px 3px);
+    pointer-events: none;
+  }
+  /* faint dashboard reflection on the windshield */
+  #reflection {
+    position: absolute;
+    left: 7.5%; right: 7.5%;
+    bottom: 22%;
+    height: 12%;
+    background: linear-gradient(to top,
+      rgba(60, 25, 80, 0.20) 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 4;
+  }
+
+  /* dashboard layout: 3 columns — left HUD | wheel | right HUD */
+  .dash-grid {
+    position: relative; height: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1.4fr 1fr;
+    align-items: center;
+    padding: 12px 4% 18px;
+    gap: 12px;
+  }
+  .dash-cell {
+    color: #00ddff;
+    text-shadow: 0 0 12px rgba(0, 221, 255, 0.55);
+    letter-spacing: 0.18em;
+    line-height: 1;
+  }
+  .dash-cell .lbl { font-size: 9px; opacity: 0.55; margin-bottom: 5px; }
+  .dash-cell .val { font-size: 26px; font-weight: 800; }
+  .dash-cell .sub { font-size: 9px; opacity: 0.5; margin-top: 5px; letter-spacing: 0.32em; }
+  .dash-cell.mag { color: #ff2d92; text-shadow: 0 0 12px rgba(255, 45, 146, 0.65); }
+  .dash-cell.right { text-align: right; }
+
+  .dash-stack { display: grid; grid-auto-rows: auto; gap: 14px; }
+
+  /* steering wheel — visible decorative SVG, doesn't rotate */
+  .wheel-wrap {
+    display: flex; align-items: flex-end; justify-content: center;
+    height: 100%;
+  }
+  .wheel {
+    width: 220px; height: 130px;
+    transform-origin: 50% 80%;
+    filter: drop-shadow(0 0 16px rgba(255,45,146,0.4));
+  }
+
+  /* glitch */
+  .glitch { position: relative; display: inline-block; }
+  .glitch::before, .glitch::after {
+    content: attr(data-text); position: absolute; left: 0; top: 0; pointer-events: none;
+  }
+  .glitch::before { color: #ff2d92; animation: gA 5s infinite linear; }
+  .glitch::after  { color: #00ddff; animation: gB 5s infinite linear; }
+  @keyframes gA {
+    0%,92%,100% { transform: translate(0,0); opacity: 0; }
+    93% { transform: translate(-1.5px, 1px); opacity: 0.7; clip-path: inset(0 0 60% 0); }
+    95% { transform: translate(1.5px, -1px); opacity: 0.5; clip-path: inset(40% 0 30% 0); }
+    97% { transform: translate(0,0); opacity: 0; }
+  }
+  @keyframes gB {
+    0%,92%,100% { transform: translate(0,0); opacity: 0; }
+    93% { transform: translate(1.5px, -1px); opacity: 0.6; clip-path: inset(60% 0 0 0); }
+    95% { transform: translate(-1.5px, 1px); opacity: 0.4; clip-path: inset(0 0 70% 0); }
+    97% { transform: translate(0,0); opacity: 0; }
+  }
+
+  /* compact control panel */
+  #ui {
+    position: fixed;
+    top: 18px; left: 18px;
+    background: rgba(8, 2, 24, 0.55);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 45, 146, 0.18);
+    padding: 12px 14px;
+    font-size: 10px; line-height: 1.45;
+    z-index: 11; width: 200px;
+    user-select: none; pointer-events: auto;
+    letter-spacing: 0.06em;
+  }
+  #ui h1 {
+    font-size: 9px; font-weight: 700;
+    letter-spacing: 0.4em; color: #d8b8ff;
+    margin: 0 0 8px 0;
+    border-bottom: 1px solid rgba(255, 45, 146, 0.18);
+    padding-bottom: 6px;
+  }
+  .row { display: flex; justify-content: space-between; gap: 6px; align-items: center; }
+  .lbl-mini { color: #777a8a; font-size: 9px; letter-spacing: 0.2em; }
+  .val-mini { color: #d8b8ff; font-size: 10px; }
+  .conf-bar { width: 100%; height: 3px; background: rgba(255,255,255,0.07); margin: 4px 0 8px; overflow: hidden; }
+  .conf-fill { height: 100%; width: 0%; background: #34c759; transition: width 0.12s ease, background 0.2s ease; }
+  .slider { margin: 6px 0; }
+  .slider input[type="range"] { width: 100%; accent-color: #ff2d92; height: 12px; background: transparent; -webkit-appearance: none; }
+  button {
+    background: transparent; color: #d8b8ff;
+    border: 1px solid rgba(255,45,146,0.3);
+    padding: 5px 8px; font: 9px ui-monospace, monospace;
+    letter-spacing: 0.18em; cursor: pointer;
+    margin: 4px 0 0; transition: background 0.15s ease, color 0.15s ease;
+    width: 100%; text-transform: uppercase;
+  }
+  button:hover { background: rgba(255,45,146,0.12); color: #fff; }
+  button.primary { background: linear-gradient(135deg,#ff2d92,#b14dff); color:#fff; border:none; }
+  button.primary:hover { filter: brightness(1.1); background: linear-gradient(135deg,#ff2d92,#b14dff); }
+  .toggle { display:flex; align-items:center; gap:6px; cursor:pointer; margin-top:6px; color:#888; font-size:9px; letter-spacing:0.2em; }
+  .toggle input { accent-color:#ff2d92; margin:0; }
+  #status { color:#5d5d70; font-size:9px; margin-top:8px; padding-top:6px; border-top:1px solid rgba(255,45,146,0.12); min-height:14px; letter-spacing:0.1em; }
+
+  #preview {
+    position: fixed; bottom: 20px; right: 20px;
+    width: 240px; height: 180px;
+    border: 1px solid rgba(255,45,146,0.4);
+    object-fit: cover; transform: scaleX(-1); background: #000;
+    display: none; z-index: 12;
+    box-shadow: 0 12px 48px rgba(180,60,255,0.3);
+  }
+  #preview.visible { display: block; }
+
+  #gate {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(2, 0, 8, 0.94);
+    z-index: 100; padding: 24px;
+  }
+  #gate .box {
+    max-width: 420px;
+    background: linear-gradient(180deg, #0c0420 0%, #04010f 100%);
+    border: 1px solid rgba(255,45,146,0.25);
+    padding: 28px; text-align: left;
+  }
+  #gate h2 { margin: 0 0 14px; font-size: 12px; letter-spacing: 0.4em; color: #d8b8ff; text-transform: uppercase; }
+  #gate p { color: #888; font-size: 11px; line-height: 1.7; margin: 0 0 10px; letter-spacing: 0.05em; }
+  #gate code { color: #c0d0ff; }
+  #gate .gate-actions { display: flex; gap: 10px; margin-top: 18px; }
+  #gate .gate-actions button { margin-top: 0; flex: 1; padding: 10px; font-size: 10px; }
+  #gate.hidden { display: none; }
+</style>
+</head>
+<body>
+<div id="scene"></div>
+
+<div id="cabin">
+  <div id="visor"></div>
+  <div class="pillar left"></div>
+  <div class="pillar right"></div>
+  <div id="reflection"></div>
+
+  <div id="dashboard">
+    <div class="dash-grid">
+      <div class="dash-cell dash-stack">
+        <div>
+          <div class="lbl">SPD</div>
+          <div class="val" id="hud-spd">000</div>
+          <div class="sub">KPH</div>
+        </div>
+        <div>
+          <div class="lbl">ODO</div>
+          <div class="val" id="hud-odo" style="font-size:18px">000.0</div>
+          <div class="sub">KM</div>
+        </div>
+      </div>
+
+      <div class="wheel-wrap">
+        <svg class="wheel" viewBox="-50 -50 100 60">
+          <defs>
+            <linearGradient id="rimGrad" x1="0" y1="-1" x2="0" y2="1">
+              <stop offset="0%" stop-color="#ff2d92"/>
+              <stop offset="50%" stop-color="#b14dff"/>
+              <stop offset="100%" stop-color="#00ddff"/>
+            </linearGradient>
+            <radialGradient id="hubGrad">
+              <stop offset="0%" stop-color="#1a0830"/>
+              <stop offset="100%" stop-color="#0a0218"/>
+            </radialGradient>
+          </defs>
+          <!-- outer rim -->
+          <circle cx="0" cy="-2" r="42" fill="none" stroke="#3a1a4a" stroke-width="6"/>
+          <circle cx="0" cy="-2" r="42" fill="none" stroke="url(#rimGrad)" stroke-width="2.4"/>
+          <!-- inner ring -->
+          <circle cx="0" cy="-2" r="36" fill="none" stroke="#00ddff" stroke-width="0.5" stroke-opacity="0.55" stroke-dasharray="2 2"/>
+          <!-- spokes (Y) -->
+          <line x1="0" y1="-38" x2="0" y2="-12" stroke="#3a1a4a" stroke-width="6"/>
+          <line x1="-31" y1="16" x2="-9" y2="3" stroke="#3a1a4a" stroke-width="6"/>
+          <line x1="31"  y1="16" x2="9"  y2="3" stroke="#3a1a4a" stroke-width="6"/>
+          <line x1="0" y1="-38" x2="0" y2="-12" stroke="#ff2d92" stroke-width="1.2" stroke-opacity="0.85"/>
+          <line x1="-31" y1="16" x2="-9" y2="3" stroke="#ff2d92" stroke-width="1.2" stroke-opacity="0.85"/>
+          <line x1="31"  y1="16" x2="9"  y2="3" stroke="#ff2d92" stroke-width="1.2" stroke-opacity="0.85"/>
+          <!-- hub -->
+          <circle cx="0" cy="-2" r="11" fill="url(#hubGrad)" stroke="#ff2d92" stroke-width="1.3"/>
+          <circle cx="0" cy="-2" r="7"  fill="none" stroke="#00ddff" stroke-width="0.5"/>
+          <text x="0" y="0.6" text-anchor="middle" font-size="6" fill="#ff2d92" font-family="ui-monospace, monospace" font-weight="700">NXS</text>
+          <!-- rim ticks -->
+          <g stroke="#00ddff" stroke-width="1.2" fill="none">
+            <line x1="0" y1="-48" x2="0" y2="-43"/>
+            <line x1="33" y1="-32" x2="29" y2="-29"/>
+            <line x1="-33" y1="-32" x2="-29" y2="-29"/>
+            <line x1="46" y1="-2" x2="42" y2="-2"/>
+            <line x1="-46" y1="-2" x2="-42" y2="-2"/>
+          </g>
+        </svg>
+      </div>
+
+      <div class="dash-cell mag right dash-stack">
+        <div>
+          <div class="lbl">GEAR</div>
+          <div class="val" id="hud-gear">1</div>
+          <div class="sub" id="hud-rpm">0000 RPM</div>
+        </div>
+        <div>
+          <div class="lbl">SYS</div>
+          <div class="val" style="font-size:14px"><span class="glitch" data-text="NXS-2087">NXS-2087</span></div>
+          <div class="sub">ID/4F-9A</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="ui">
+  <h1>OUTRUN</h1>
+  <div class="row"><span class="lbl-mini">TRK</span><span class="val-mini" id="mode-name">—</span></div>
+  <div class="conf-bar"><div class="conf-fill" id="conf"></div></div>
+  <div class="slider">
+    <div class="row"><span class="lbl-mini">LOOK</span><span class="val-mini" id="sens-val">2.4×</span></div>
+    <input type="range" id="sens" min="0.5" max="4.0" step="0.1" value="2.4">
+  </div>
+  <div class="slider">
+    <div class="row"><span class="lbl-mini">SPEED</span><span class="val-mini" id="speed-val">1.0×</span></div>
+    <input type="range" id="speed" min="0.0" max="2.5" step="0.1" value="1.0">
+  </div>
+  <button id="recalibrate" class="primary">RECALIBRATE</button>
+  <button id="toggle-mode">MOUSE MODE</button>
+  <label class="toggle">
+    <input type="checkbox" id="show-preview" checked>
+    <span>PREVIEW</span>
+  </label>
+  <div id="status">INITIALIZING…</div>
+</div>
+
+<video id="preview" autoplay playsinline muted class="visible"></video>
+
+<div id="gate">
+  <div class="box">
+    <h2>NXS-2087 // OUTRUN</h2>
+    <p>The road only goes one way. Tilt your head — the world doesn't move, just your view through the windshield.</p>
+    <p style="color:#555">Face tracking runs entirely in your browser. Nothing is recorded.</p>
+    <div class="gate-actions">
+      <button id="gate-start" class="primary">DRIVE</button>
+      <button id="gate-mouse">MOUSE</button>
+    </div>
+    <p style="font-size: 10px; color: #444; margin-top: 16px">
+      Webcam access requires <code>http://localhost</code> or HTTPS.
+    </p>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+// ==================== DOM ====================
+const sceneEl   = document.getElementById('scene');
+const previewEl = document.getElementById('preview');
+const confEl    = document.getElementById('conf');
+const recalibBtn = document.getElementById('recalibrate');
+const toggleModeBtn = document.getElementById('toggle-mode');
+const showPreviewCb = document.getElementById('show-preview');
+const statusEl  = document.getElementById('status');
+const modeNameEl = document.getElementById('mode-name');
+const sensEl   = document.getElementById('sens');
+const sensValEl = document.getElementById('sens-val');
+const speedEl  = document.getElementById('speed');
+const speedValEl = document.getElementById('speed-val');
+
+const hudSpdEl  = document.getElementById('hud-spd');
+const hudGearEl = document.getElementById('hud-gear');
+const hudRpmEl  = document.getElementById('hud-rpm');
+const hudOdoEl  = document.getElementById('hud-odo');
+
+const gateEl = document.getElementById('gate');
+const gateStartBtn = document.getElementById('gate-start');
+const gateMouseBtn = document.getElementById('gate-mouse');
+
+let mode = 'idle';
+
+// ==================== Three.js ====================
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.3;
+sceneEl.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0420);
+// VISIBILITY FIX: linear fog with much later "near", so close-to-mid
+// objects are NOT fogged out at all. Distant items fade gracefully.
+scene.fog = new THREE.Fog(0x150a35, 80, 700);
+
+const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 900);
+
+const SCREEN_W_CM = 60;
+let screenW = SCREEN_W_CM;
+let screenH = SCREEN_W_CM * (window.innerHeight / window.innerWidth);
+
+// ==================== config ====================
+const ALPHA = 0.28;
+let LOOK_SENS = 2.4;
+let DRIVE_SPEED = 1.0;
+const REAL_IOD_CM = 6.3;
+const REST_DEPTH_CM = 50;
+
+sensEl.addEventListener('input', () => {
+  LOOK_SENS = parseFloat(sensEl.value);
+  sensValEl.textContent = `${LOOK_SENS.toFixed(1)}×`;
+});
+speedEl.addEventListener('input', () => {
+  DRIVE_SPEED = parseFloat(speedEl.value);
+  speedValEl.textContent = `${DRIVE_SPEED.toFixed(1)}×`;
+});
+
+// ==================== world container ====================
+const world = new THREE.Group();
+scene.add(world);
+
+// ==================== synthwave grid floor ====================
+const FLOOR_W = 900, FLOOR_D = 900;
+const floorUniforms = {
+  uTime:        { value: 0 },
+  uSpeed:       { value: 1.0 },
+  uColorBase:   { value: new THREE.Color(0x0a0420) },
+  uColorNear:   { value: new THREE.Color(0xff2d92) },
+  uColorFar:    { value: new THREE.Color(0x00ddff) },
+  uHorizonGlow: { value: new THREE.Color(0xff5544) },
+};
+const floorMat = new THREE.ShaderMaterial({
+  uniforms: floorUniforms,
+  vertexShader: `
+    varying vec3 vWorld;
+    void main() {
+      vec4 wp = modelMatrix * vec4(position, 1.0);
+      vWorld = wp.xyz;
+      gl_Position = projectionMatrix * viewMatrix * wp;
+    }
+  `,
+  fragmentShader: `
+    precision highp float;
+    uniform float uTime, uSpeed;
+    uniform vec3 uColorBase, uColorNear, uColorFar, uHorizonGlow;
+    varying vec3 vWorld;
+    float gl_(float coord, float lw) {
+      float c = abs(fract(coord) - 0.5);
+      return smoothstep(0.5 - lw, 0.5 - lw*0.4, c);
+    }
+    void main() {
+      float gx = vWorld.x / 8.0;
+      float gz = (vWorld.z - uTime * 30.0 * uSpeed) / 8.0;
+      float lineX = gl_(gx, 0.05);
+      float lineZ = gl_(gz, 0.06);
+      float line = max(lineX, lineZ);
+      float distZ = -vWorld.z;
+      float fade  = 1.0 - smoothstep(60.0, 380.0, distZ);
+      float near  = smoothstep(180.0, 0.0, distZ);
+      vec3 lineCol = mix(uColorFar, uColorNear, near);
+      // brighter horizon glow so the back of the road reads
+      float horizon = smoothstep(150.0, 360.0, distZ);
+      vec3 base = mix(uColorBase, uHorizonGlow * 0.9, horizon);
+      vec3 col = mix(base, lineCol, line * fade * 1.5);
+      col += line * fade * 0.35 * vec3(0.5, 0.2, 0.8) * (0.5 + 0.5 * sin(uTime * 2.0));
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `,
+});
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(FLOOR_W, FLOOR_D), floorMat);
+floor.rotation.x = -Math.PI / 2;
+floor.position.y = -screenH / 2;
+floor.position.z = -FLOOR_D / 2;
+world.add(floor);
+
+// ==================== moon (large, prominent) ====================
+const moonGroup = new THREE.Group();
+world.add(moonGroup);
+{
+  const moon = new THREE.Mesh(
+    new THREE.CircleGeometry(34, 64),
+    new THREE.MeshBasicMaterial({
+      color: 0xff8a55, transparent: true, opacity: 0.98, fog: false,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    })
+  );
+  moon.position.set(-80, 65, -300);
+  moonGroup.add(moon);
+  const halo = new THREE.Mesh(
+    new THREE.CircleGeometry(60, 64),
+    new THREE.MeshBasicMaterial({
+      color: 0xff2d92, transparent: true, opacity: 0.22, fog: false,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    })
+  );
+  halo.position.copy(moon.position); halo.position.z -= 0.5;
+  moonGroup.add(halo);
+  const linesMat = new THREE.LineBasicMaterial({
+    color: 0x0a0420, transparent: true, opacity: 0.95, fog: false,
+  });
+  for (let i = 0; i < 6; i++) {
+    const y = moon.position.y - 22 + i * 7 + Math.random() * 2;
+    const half = Math.sqrt(Math.max(0.1, 34*34 - (y - moon.position.y)**2));
+    const pts = [
+      new THREE.Vector3(moon.position.x - half, y, moon.position.z + 0.05),
+      new THREE.Vector3(moon.position.x + half, y, moon.position.z + 0.05),
+    ];
+    moonGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), linesMat));
+  }
+}
+
+// ==================== stars ====================
+const skyGroup = new THREE.Group();
+world.add(skyGroup);
+{
+  const N = 1500;
+  const positions = new Float32Array(N * 3);
+  const colors    = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi   = Math.acos(0.05 + Math.random() * 0.85);
+    const r     = 380 + Math.random() * 80;
+    positions[i*3+0] = r * Math.sin(phi) * Math.cos(theta);
+    positions[i*3+1] = r * Math.cos(phi) + 30;
+    positions[i*3+2] = -Math.abs(r * Math.sin(phi) * Math.sin(theta));
+    const tint = Math.random();
+    colors[i*3+0] = 0.85 + 0.15 * tint;
+    colors[i*3+1] = 0.85 + 0.10 * (1 - tint);
+    colors[i*3+2] = 0.95;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('color',    new THREE.Float32BufferAttribute(colors, 3));
+  const mat = new THREE.PointsMaterial({
+    size: 0.95, vertexColors: true, transparent: true, opacity: 0.95,
+    blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true, fog: false,
+  });
+  skyGroup.add(new THREE.Points(geo, mat));
+}
+
+// ==================== constellations ====================
+const CONSTELLATIONS = {
+  orion: {
+    stars: [[-0.05,0.95],[-0.55,0.50],[0.45,0.55],[-0.18,-0.10],[0,-0.12],[0.18,-0.14],[-0.55,-0.85],[0.55,-0.85]],
+    edges: [[0,1],[0,2],[1,3],[2,5],[3,4],[4,5],[3,6],[5,7]],
+  },
+  bigDipper: {
+    stars: [[1,0.55],[0.55,0.55],[0,0.45],[-0.55,0.50],[-1.05,0.65],[1,-0.05],[0.55,-0.05]],
+    edges: [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,1]],
+  },
+  cassiopeia: {
+    stars: [[-0.9,0],[-0.5,0.55],[0,0.05],[0.5,0.55],[0.9,0.05]],
+    edges: [[0,1],[1,2],[2,3],[3,4]],
+  },
+  cygnus: {
+    stars: [[0,1],[0,0.3],[0,-1],[-0.7,0.3],[0.7,0.3]],
+    edges: [[0,1],[1,2],[1,3],[1,4]],
+  },
+};
+const constellationStarPoints = [];
+function addConstellation(data, theta, phi, scale, color) {
+  const r = 380;
+  const cx = r * Math.sin(phi) * Math.cos(theta);
+  const cy = r * Math.cos(phi) + 30;
+  const cz = -Math.abs(r * Math.sin(phi) * Math.sin(theta));
+  const radial = new THREE.Vector3(cx, cy - 30, cz).normalize();
+  let right = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), radial);
+  if (right.lengthSq() < 0.001) right.set(1, 0, 0);
+  right.normalize();
+  const up = new THREE.Vector3().crossVectors(radial, right).normalize();
+  const wp = data.stars.map(([sx, sy]) =>
+    new THREE.Vector3(cx, cy, cz)
+      .add(right.clone().multiplyScalar(sx * scale))
+      .add(up.clone().multiplyScalar(sy * scale))
+  );
+  const arr = new Float32Array(wp.length * 3);
+  for (let i = 0; i < wp.length; i++) {
+    arr[i*3+0] = wp[i].x; arr[i*3+1] = wp[i].y; arr[i*3+2] = wp[i].z;
+  }
+  const starGeo = new THREE.BufferGeometry();
+  starGeo.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
+  const starPts = new THREE.Points(starGeo, new THREE.PointsMaterial({
+    color: 0xffffff, size: 4.2, transparent: true, opacity: 1, fog: false,
+    blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
+  }));
+  starPts.userData.basePhase = Math.random() * Math.PI * 2;
+  skyGroup.add(starPts);
+  constellationStarPoints.push(starPts);
+  const lp = [];
+  for (const [a, b] of data.edges) lp.push(wp[a].x, wp[a].y, wp[a].z, wp[b].x, wp[b].y, wp[b].z);
+  const lineGeo = new THREE.BufferGeometry();
+  lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3));
+  skyGroup.add(new THREE.LineSegments(lineGeo, new THREE.LineBasicMaterial({
+    color, transparent: true, opacity: 0.4, fog: false,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  })));
+}
+addConstellation(CONSTELLATIONS.orion,      -0.55, 0.95, 42, 0x00ddff);
+addConstellation(CONSTELLATIONS.bigDipper,   0.55, 0.85, 38, 0xff2d92);
+addConstellation(CONSTELLATIONS.cassiopeia, -0.10, 0.40, 36, 0xb14dff);
+addConstellation(CONSTELLATIONS.cygnus,      0.30, 0.55, 40, 0xffd966);
+
+// ==================== mountains (vivid, vertex-colored gradient) ====================
+function createMountainLayer(zPos, scale, baseColorHex, peakColorHex, edgeColorHex, segments = 60) {
+  const baseY = -screenH / 2;
+  const positions = [];
+  const colors = [];
+  const ridgePoints = [];
+  const baseCol = new THREE.Color(baseColorHex);
+  const peakCol = new THREE.Color(peakColorHex);
+
+  for (let i = 0; i <= segments; i++) {
+    const x = -340 + (680 / segments) * i;
+    const seed = i * 0.42 + zPos * 0.013;
+    const noise = Math.sin(seed) * 0.5 + Math.sin(seed * 2.7) * 0.3 + Math.sin(seed * 6.1) * 0.2;
+    const h = Math.max(2, scale * 0.55 + noise * scale * 0.55);
+    ridgePoints.push(new THREE.Vector3(x, baseY + h, zPos));
+  }
+
+  for (let i = 0; i <= segments; i++) {
+    positions.push(ridgePoints[i].x, baseY - 4, zPos);
+    colors.push(baseCol.r, baseCol.g, baseCol.b);
+    positions.push(ridgePoints[i].x, ridgePoints[i].y, zPos);
+    colors.push(peakCol.r, peakCol.g, peakCol.b);
+  }
+  const indices = [];
+  for (let i = 0; i < segments; i++) {
+    const a = i * 2;
+    indices.push(a, a + 1, a + 2);
+    indices.push(a + 1, a + 3, a + 2);
+  }
+  const fillGeo = new THREE.BufferGeometry();
+  fillGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  fillGeo.setAttribute('color',    new THREE.Float32BufferAttribute(colors, 3));
+  fillGeo.setIndex(indices);
+  const fill = new THREE.Mesh(fillGeo, new THREE.MeshBasicMaterial({
+    vertexColors: true, fog: true,
+  }));
+
+  const ridgeGeo = new THREE.BufferGeometry().setFromPoints(ridgePoints);
+  const ridge = new THREE.Line(ridgeGeo, new THREE.LineBasicMaterial({
+    color: edgeColorHex, transparent: true, opacity: 0.85, fog: true,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  }));
+
+  const grp = new THREE.Group();
+  grp.add(fill); grp.add(ridge);
+  return grp;
+}
+// VISIBILITY FIX: vivid colors instead of near-black silhouettes
+world.add(createMountainLayer(-360, 70, 0x1a0a3a, 0x7a3acc, 0xb14dff)); // far range
+world.add(createMountainLayer(-260, 42, 0x250d4a, 0xff2d92, 0xff5cba)); // mid range
+
+// ==================== city ====================
+const cityGroup = new THREE.Group();
+world.add(cityGroup);
+const cityAnimables = [];
+
+function addBuilding(x, z, w, h, d, palette) {
+  const yBase = -screenH / 2;
+  const baseGeo = new THREE.BoxGeometry(w, h, d);
+  baseGeo.translate(x, yBase + h / 2, z);
+
+  let setbackGeo = null;
+  let topY = yBase + h;
+  if (Math.random() < 0.4) {
+    const sw = w * (0.5 + Math.random() * 0.25);
+    const sd = d * (0.5 + Math.random() * 0.25);
+    const sh = h * (0.15 + Math.random() * 0.20);
+    setbackGeo = new THREE.BoxGeometry(sw, sh, sd);
+    setbackGeo.translate(x, topY + sh / 2, z);
+    topY += sh;
+  }
+
+  if (h > 38 && Math.random() < 0.55) {
+    const antH = 6 + Math.random() * 12;
+    const ant = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.08, 0.18, antH, 6),
+      new THREE.MeshBasicMaterial({ color: 0x180830, fog: true })
+    );
+    ant.position.set(x, topY + antH / 2, z);
+    cityGroup.add(ant);
+    const blink = new THREE.Mesh(
+      new THREE.SphereGeometry(0.55, 8, 8),
+      new THREE.MeshBasicMaterial({
+        color: 0xff0033, transparent: true, opacity: 1, fog: false,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      })
+    );
+    blink.position.set(x, topY + antH + 0.6, z);
+    cityGroup.add(blink);
+    cityAnimables.push({
+      mesh: blink, type: 'blink',
+      phase: Math.random() * Math.PI * 2, speed: 2 + Math.random() * 4,
+    });
+  }
+
+  if (h > 30 && Math.random() < 0.5) {
+    const sCol = palette[Math.floor(Math.random() * palette.length)];
+    const stripeMat = new THREE.MeshBasicMaterial({
+      color: sCol, transparent: true, opacity: 0.95, fog: false,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    const stripeH = h * 0.85;
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.45, stripeH, 0.1), stripeMat);
+    const sx = x + (Math.random() < 0.5 ? -w/2 + 0.3 : w/2 - 0.3);
+    stripe.position.set(sx, yBase + stripeH/2 + 1, z + d/2 + 0.06);
+    cityGroup.add(stripe);
+    cityAnimables.push({
+      mesh: stripe, type: 'stripe',
+      phase: Math.random() * Math.PI * 2, speed: 1.2 + Math.random() * 2,
+    });
+  }
+
+  return { baseGeo, setbackGeo };
+}
+
+function buildCity() {
+  while (cityGroup.children.length) cityGroup.remove(cityGroup.children[0]);
+  cityAnimables.length = 0;
+
+  const skylineGeos = [];
+  const winPositions = [];
+  const winColors    = [];
+  const palette = [0xff2d92, 0x00ddff, 0xffd966, 0x9d4edd];
+  const paletteCols = palette.map(c => new THREE.Color(c));
+  const yBase = -screenH / 2;
+
+  for (let row = 0; row < 2; row++) {
+    const zFar = row === 0 ? -150 : -210;
+    const xMin = row === 0 ? 32 : 48;
+    for (let i = 0; i < 16; i++) {
+      const side = Math.random() < 0.5 ? -1 : 1;
+      const x = side * (xMin + Math.random() * 70);
+      const z = zFar - Math.random() * 60;
+      const w = 8 + Math.random() * 14;
+      const h = 26 + Math.random() * 50;
+      const d = 8 + Math.random() * 14;
+      const { baseGeo, setbackGeo } = addBuilding(x, z, w, h, d, palette);
+      skylineGeos.push(baseGeo);
+      if (setbackGeo) skylineGeos.push(setbackGeo);
+
+      const winsCols = Math.max(2, Math.floor(w / 2.2));
+      const winsRows = Math.max(3, Math.floor(h / 2.2));
+      for (let r = 0; r < winsRows; r++) {
+        for (let c = 0; c < winsCols; c++) {
+          if (Math.random() < 0.55) {
+            const wx = x + ((c + 0.5) / winsCols - 0.5) * w * 0.95;
+            const wy = yBase + ((r + 0.5) / winsRows) * h;
+            const wz = z + d/2 + 0.05;
+            winPositions.push(wx, wy, wz);
+            const col = paletteCols[Math.floor(Math.random() * paletteCols.length)];
+            winColors.push(col.r, col.g, col.b);
+          }
+        }
+      }
+    }
+  }
+
+  const merged = mergeBoxGeometries(skylineGeos);
+  // VISIBILITY FIX: deeper purple instead of near-black
+  cityGroup.add(new THREE.Mesh(merged, new THREE.MeshBasicMaterial({
+    color: 0x1c0a36, fog: true,
+  })));
+
+  for (let g = 0; g < 3; g++) {
+    const positions = [], colors = [];
+    for (let i = 0; i < winPositions.length; i += 3) {
+      if (i / 3 % 3 !== g) continue;
+      positions.push(winPositions[i], winPositions[i+1], winPositions[i+2]);
+      colors.push(winColors[i], winColors[i+1], winColors[i+2]);
+    }
+    if (positions.length === 0) continue;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('color',    new THREE.Float32BufferAttribute(colors, 3));
+    const mat = new THREE.PointsMaterial({
+      size: 1.5, vertexColors: true, transparent: true, opacity: 0.95,
+      blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true, fog: true,
+    });
+    const pts = new THREE.Points(geo, mat);
+    cityGroup.add(pts);
+    cityAnimables.push({ mesh: pts, type: 'windows', phase: g * 1.7, speed: 1.8 + g * 0.5 });
+  }
+}
+
+function mergeBoxGeometries(geos) {
+  let posCount = 0, idxCount = 0;
+  for (const g of geos) {
+    posCount += g.attributes.position.count;
+    idxCount += g.index ? g.index.count : g.attributes.position.count;
+  }
+  const positions = new Float32Array(posCount * 3);
+  const indices = new Uint32Array(idxCount);
+  let pOff = 0, iOff = 0, vOff = 0;
+  for (const g of geos) {
+    const p = g.attributes.position.array;
+    positions.set(p, pOff * 3);
+    const idx = g.index ? g.index.array : null;
+    if (idx) {
+      for (let i = 0; i < idx.length; i++) indices[iOff + i] = idx[i] + vOff;
+      iOff += idx.length;
+    } else {
+      for (let i = 0; i < g.attributes.position.count; i++) indices[iOff + i] = vOff + i;
+      iOff += g.attributes.position.count;
+    }
+    vOff += g.attributes.position.count;
+    pOff += g.attributes.position.count;
+  }
+  const merged = new THREE.BufferGeometry();
+  merged.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  merged.setIndex(new THREE.BufferAttribute(indices, 1));
+  merged.computeVertexNormals();
+  return merged;
+}
+buildCity();
+
+// ==================== TREES — visible, scrolling alongside the road ====================
+const trees = [];
+const TREE_FRONT = 30;
+const TREE_BACK  = -220;
+const TREE_SPAN  = TREE_FRONT - TREE_BACK;
+
+function createTree() {
+  const tree = new THREE.Group();
+  // VISIBILITY FIX: brighter foliage (still dark, but readable)
+  const trunkMat   = new THREE.MeshBasicMaterial({ color: 0x2a120a, fog: true });
+  const foliageMat = new THREE.MeshBasicMaterial({ color: 0x183a1a, fog: true });
+
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.25, 1.2, 6), trunkMat);
+  trunk.position.y = 0.6;
+  tree.add(trunk);
+  for (let i = 0; i < 3; i++) {
+    const r = 1.0 - i * 0.20;
+    const h = 1.2 - i * 0.18;
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(r, h, 5), foliageMat);
+    cone.position.y = 1.3 + i * 0.85;
+    tree.add(cone);
+  }
+  // neon accent on top
+  const accent = new THREE.Mesh(
+    new THREE.ConeGeometry(0.4, 0.32, 5),
+    new THREE.MeshBasicMaterial({
+      color: Math.random() < 0.5 ? 0xff2d92 : 0x00ddff,
+      transparent: true, opacity: 0.7, fog: true,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    })
+  );
+  accent.position.y = 3.25;
+  tree.add(accent);
+  // crisp edge outline for that synthwave feel
+  const edgeMat = new THREE.LineBasicMaterial({
+    color: 0x6a3aaa, transparent: true, opacity: 0.55, fog: true,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  for (let i = 0; i < 3; i++) {
+    const r = 1.0 - i * 0.20;
+    const h = 1.2 - i * 0.18;
+    const edges = new THREE.EdgesGeometry(new THREE.ConeGeometry(r, h, 5));
+    const line = new THREE.LineSegments(edges, edgeMat);
+    line.position.y = 1.3 + i * 0.85;
+    tree.add(line);
+  }
+  return tree;
+}
+
+function spawnTree(z) {
+  const tree = createTree();
+  const s = 0.85 + Math.random() * 1.4;
+  tree.scale.set(s, s, s);
+  const side = Math.random() < 0.5 ? -1 : 1;
+  const xOff = (10 + Math.random() * 22) * side;
+  tree.position.set(xOff, -screenH / 2, z);
+  tree.rotation.y = Math.random() * Math.PI * 2;
+  return tree;
+}
+
+const TREE_COUNT = 36;
+for (let i = 0; i < TREE_COUNT; i++) {
+  const z = TREE_BACK + (i / TREE_COUNT) * TREE_SPAN + (Math.random() - 0.5) * 6;
+  const tree = spawnTree(z);
+  world.add(tree);
+  trees.push(tree);
+}
+
+// ==================== streaks ====================
+const STREAK_COUNT = 70;
+const streakGeo = new THREE.BufferGeometry();
+const streakPos = new Float32Array(STREAK_COUNT * 6);
+const streakCol = new Float32Array(STREAK_COUNT * 6);
+const streakState = new Array(STREAK_COUNT);
+for (let i = 0; i < STREAK_COUNT; i++) streakState[i] = spawnStreak(true);
+
+function spawnStreak(initial) {
+  const side = Math.random() < 0.5 ? -1 : 1;
+  const x = side * (15 + Math.random() * 90);
+  const y = 5 + Math.random() * 55;
+  const z = initial ? -50 - Math.random() * 380 : -380 - Math.random() * 120;
+  const vz = 60 + Math.random() * 140;
+  const len = 8 + Math.random() * 18;
+  const c = Math.random();
+  const r = c < 0.34 ? 1.0 : c < 0.67 ? 0.0 : 0.6;
+  const g = c < 0.34 ? 0.18 : c < 0.67 ? 0.85 : 0.30;
+  const b = c < 0.34 ? 0.6  : c < 0.67 ? 1.0  : 1.0;
+  return { x, y, z, vz, len, r, g, b };
+}
+function writeStreakBuffer() {
+  for (let i = 0; i < STREAK_COUNT; i++) {
+    const s = streakState[i];
+    streakPos[i*6+0] = s.x; streakPos[i*6+1] = s.y; streakPos[i*6+2] = s.z;
+    streakPos[i*6+3] = s.x; streakPos[i*6+4] = s.y; streakPos[i*6+5] = s.z + s.len;
+    streakCol[i*6+0] = s.r * 0.05; streakCol[i*6+1] = s.g * 0.05; streakCol[i*6+2] = s.b * 0.05;
+    streakCol[i*6+3] = s.r;        streakCol[i*6+4] = s.g;        streakCol[i*6+5] = s.b;
+  }
+}
+streakGeo.setAttribute('position', new THREE.BufferAttribute(streakPos, 3));
+streakGeo.setAttribute('color',    new THREE.BufferAttribute(streakCol, 3));
+const streakMat = new THREE.LineBasicMaterial({
+  vertexColors: true, transparent: true, opacity: 0.85,
+  blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
+});
+world.add(new THREE.LineSegments(streakGeo, streakMat));
+
+// ==================== lighting ====================
+scene.add(new THREE.AmbientLight(0x6040a0, 0.55));
+const fillCyan = new THREE.PointLight(0x00ddff, 1.5, 90);
+fillCyan.position.set(-25, 6, -30);
+scene.add(fillCyan);
+const fillMag = new THREE.PointLight(0xff2d92, 1.5, 90);
+fillMag.position.set( 25, 6, -55);
+scene.add(fillMag);
+
+// ==================== off-axis projection ====================
+function setOffAxisProjection(eyeX, eyeY, eyeZ) {
+  const halfW = screenW / 2;
+  const halfH = screenH / 2;
+  const d = Math.max(eyeZ, 1);
+  const near = Math.max(0.5, d * 0.05);
+  const far  = 900;
+  const left   = (-halfW - eyeX) * near / d;
+  const right  = ( halfW - eyeX) * near / d;
+  const bottom = (-halfH - eyeY) * near / d;
+  const top    = ( halfH - eyeY) * near / d;
+  camera.projectionMatrix.makePerspective(left, right, top, bottom, near, far);
+  camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+  camera.position.set(eyeX, eyeY, eyeZ);
+  camera.quaternion.identity();
+  camera.updateMatrixWorld(true);
+}
+
+function onResize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h);
+  screenW = SCREEN_W_CM;
+  screenH = SCREEN_W_CM * (h / w);
+  floor.position.y = -screenH / 2;
+  buildCity();
+}
+window.addEventListener('resize', onResize);
+
+// ==================== head state ====================
+const headRaw  = { x: 0, y: 0, z: REST_DEPTH_CM };
+const headFilt = { x: 0, y: 0, z: REST_DEPTH_CM };
+let detectionScore = 0;
+
+const mouseTarget = { x: 0, y: 0, z: REST_DEPTH_CM };
+window.addEventListener('mousemove', (e) => {
+  const nx = (e.clientX / window.innerWidth) * 2 - 1;
+  const ny = (e.clientY / window.innerHeight) * 2 - 1;
+  mouseTarget.x = -nx * 28;
+  mouseTarget.y =  ny * 18;
+});
+window.addEventListener('wheel', (e) => {
+  if (mode !== 'mouse') return;
+  mouseTarget.z = Math.max(20, Math.min(90, mouseTarget.z + e.deltaY * 0.05));
+  e.preventDefault();
+}, { passive: false });
+
+// ==================== mediapipe ====================
+let faceLandmarker = null;
+let lastVideoTime = -1;
+let calibration = null;
+let calibrationFrames = 0;
+const CALIBRATION_NEEDED = 25;
+
+async function loadFaceLandmarker() {
+  const visionMod = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/vision_bundle.mjs");
+  const { FaceLandmarker, FilesetResolver } = visionMod;
+  const fileset = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.18/wasm"
+  );
+  faceLandmarker = await FaceLandmarker.createFromOptions(fileset, {
+    baseOptions: {
+      modelAssetPath:
+        "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+      delegate: "GPU",
+    },
+    runningMode: "VIDEO", numFaces: 1,
+    outputFaceBlendshapes: false, outputFacialTransformationMatrixes: false,
+  });
+}
+
+async function startWebcam() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
+    throw new Error("This browser doesn't support getUserMedia.");
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { width: 640, height: 480, facingMode: 'user' }, audio: false,
+  });
+  previewEl.srcObject = stream;
+  await new Promise((r) => (previewEl.onloadedmetadata = r));
+  await previewEl.play();
+}
+
+function processFace(landmarks) {
+  let leftEye, rightEye;
+  if (landmarks.length >= 478) { leftEye = landmarks[468]; rightEye = landmarks[473]; }
+  else { leftEye = landmarks[33]; rightEye = landmarks[263]; }
+  const midX = (leftEye.x + rightEye.x) / 2;
+  const midY = (leftEye.y + rightEye.y) / 2;
+  const iod  = Math.hypot(rightEye.x - leftEye.x, rightEye.y - leftEye.y);
+
+  if (!calibration) {
+    calibrationFrames++;
+    if (calibrationFrames >= CALIBRATION_NEEDED) {
+      calibration = { x: midX, y: midY, iod };
+      statusEl.textContent = 'TRACKING';
+    }
+    return;
+  }
+  const dxImg = midX - calibration.x;
+  const dyImg = midY - calibration.y;
+  const cmPerImg = REAL_IOD_CM / Math.max(iod, 1e-4);
+  const baseZ = REST_DEPTH_CM * (calibration.iod / Math.max(iod, 1e-4));
+  const dz = baseZ - REST_DEPTH_CM;
+  // Head movement → off-axis projection only (parallax/look-around).
+  // The car keeps moving forward; head doesn't steer.
+  headRaw.x = +dxImg * cmPerImg * LOOK_SENS;
+  headRaw.y = +dyImg * cmPerImg * LOOK_SENS;
+  headRaw.z = REST_DEPTH_CM + dz * (LOOK_SENS * 0.6);
+}
+
+function detectionLoop() {
+  if (mode === 'webcam' && faceLandmarker && previewEl.readyState >= 2) {
+    const tNow = performance.now();
+    if (previewEl.currentTime !== lastVideoTime) {
+      lastVideoTime = previewEl.currentTime;
+      const result = faceLandmarker.detectForVideo(previewEl, tNow);
+      if (result.faceLandmarks && result.faceLandmarks.length > 0) {
+        processFace(result.faceLandmarks[0]);
+        detectionScore = Math.min(1, detectionScore + 0.06);
+      } else {
+        detectionScore = Math.max(0, detectionScore - 0.04);
+      }
+    }
+  }
+  requestAnimationFrame(detectionLoop);
+}
+
+// ==================== render loop ====================
+let t0 = performance.now();
+let odoMeters = 0;
+function gearFromKph(k) {
+  if (k < 12) return 1; if (k < 28) return 2; if (k < 50) return 3;
+  if (k < 80) return 4; if (k < 120) return 5; return 6;
+}
+
+function animate() {
+  const tMs = performance.now();
+  const t = (tMs - t0) / 1000;
+  const dt = Math.min(0.05, (tMs - (animate._last ?? tMs)) / 1000);
+  animate._last = tMs;
+
+  if (mode === 'mouse') {
+    headRaw.x = mouseTarget.x;
+    headRaw.y = mouseTarget.y;
+    headRaw.z = mouseTarget.z;
+    detectionScore = 1;
+  }
+  headFilt.x += (headRaw.x - headFilt.x) * ALPHA;
+  headFilt.y += (headRaw.y - headFilt.y) * ALPHA;
+  headFilt.z += (headRaw.z - headFilt.z) * ALPHA;
+
+  let eyeX = 0, eyeY = 0, eyeZ = REST_DEPTH_CM;
+  if ((mode === 'webcam' && calibration) || mode === 'mouse') {
+    eyeX = headFilt.x; eyeY = headFilt.y; eyeZ = Math.max(15, headFilt.z);
+  }
+  setOffAxisProjection(eyeX, eyeY, eyeZ);
+
+  floorUniforms.uTime.value = t;
+  floorUniforms.uSpeed.value = Math.max(0.02, DRIVE_SPEED);
+
+  for (let i = 0; i < STREAK_COUNT; i++) {
+    const s = streakState[i];
+    s.z += s.vz * dt * Math.max(0.1, DRIVE_SPEED);
+    if (s.z > 5) Object.assign(s, spawnStreak(false));
+  }
+  writeStreakBuffer();
+  streakGeo.attributes.position.needsUpdate = true;
+  streakGeo.attributes.color.needsUpdate = true;
+
+  const treeSpeed = 50 * Math.max(0.1, DRIVE_SPEED);
+  for (const tree of trees) {
+    tree.position.z += treeSpeed * dt;
+    if (tree.position.z > TREE_FRONT) {
+      tree.position.z -= TREE_SPAN;
+      const side = Math.random() < 0.5 ? -1 : 1;
+      tree.position.x = (10 + Math.random() * 22) * side;
+    }
+  }
+
+  skyGroup.rotation.y = t * 0.012;
+  for (const pts of constellationStarPoints) {
+    pts.material.opacity = 0.85 + 0.15 * Math.sin(t * 1.2 + pts.userData.basePhase);
+  }
+  for (const a of cityAnimables) {
+    if (a.type === 'stripe')      a.mesh.material.opacity = 0.55 + 0.4 * Math.sin(t * a.speed + a.phase);
+    else if (a.type === 'blink')  a.mesh.material.opacity = Math.sin(t * a.speed + a.phase) > 0.3 ? 1 : 0.05;
+    else if (a.type === 'windows')a.mesh.material.opacity = 0.75 + 0.25 * Math.sin(t * a.speed + a.phase);
+  }
+  fillMag.intensity  = 1.3 + 0.6 * Math.sin(t * 0.9);
+  fillCyan.intensity = 1.3 + 0.6 * Math.sin(t * 0.9 + Math.PI);
+
+  // HUD
+  const kph = Math.max(0, Math.floor(DRIVE_SPEED * 110 + Math.sin(t * 0.7) * 1.5));
+  hudSpdEl.textContent = String(kph).padStart(3, '0');
+  hudGearEl.textContent = gearFromKph(kph);
+  const rpm = Math.floor(800 + DRIVE_SPEED * 4200 + Math.sin(t * 8.4) * 80);
+  hudRpmEl.textContent = `${String(rpm).padStart(4, '0')} RPM`;
+  odoMeters += (kph / 3.6) * dt;
+  hudOdoEl.textContent = (odoMeters / 1000).toFixed(1).padStart(5, '0');
+
+  confEl.style.width = `${(detectionScore * 100).toFixed(0)}%`;
+  confEl.style.background =
+    detectionScore > 0.6 ? '#34c759' :
+    detectionScore > 0.25 ? '#ffcc00' : '#ff453a';
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+
+// ==================== UI ====================
+recalibBtn.addEventListener('click', () => {
+  calibration = null;
+  calibrationFrames = 0;
+  detectionScore = Math.min(detectionScore, 0.5);
+  statusEl.textContent = mode === 'webcam' ? 'CALIBRATING…' : 'ORIGIN RESET';
+  if (mode === 'mouse') { mouseTarget.x = mouseTarget.y = 0; mouseTarget.z = REST_DEPTH_CM; }
+});
+showPreviewCb.addEventListener('change', () => {
+  previewEl.classList.toggle('visible', showPreviewCb.checked);
+});
+toggleModeBtn.addEventListener('click', async () => {
+  if (mode === 'webcam') setMode('mouse');
+  else if (mode === 'mouse') {
+    const ok = await tryStartWebcam();
+    if (!ok) setMode('mouse');
+  }
+});
+window.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === 'r' || e.key === 'R') recalibBtn.click();
+  if (e.key === 'p' || e.key === 'P') {
+    showPreviewCb.checked = !showPreviewCb.checked;
+    showPreviewCb.dispatchEvent(new Event('change'));
+  }
+  if (e.key === 'm' || e.key === 'M') toggleModeBtn.click();
+});
+
+function setMode(newMode) {
+  mode = newMode;
+  modeNameEl.textContent = newMode === 'webcam' ? 'CAM' : (newMode === 'mouse' ? 'MOUSE' : '—');
+  toggleModeBtn.textContent = newMode === 'webcam' ? 'MOUSE MODE' : 'WEBCAM MODE';
+  if (newMode === 'mouse') { statusEl.textContent = 'MOUSE'; detectionScore = 1; }
+}
+
+async function tryStartWebcam() {
+  try {
+    statusEl.textContent = 'WEBCAM…';
+    await startWebcam();
+    if (!faceLandmarker) {
+      statusEl.textContent = 'MODEL…';
+      await loadFaceLandmarker();
+    }
+    setMode('webcam');
+    statusEl.textContent = 'CALIBRATING…';
+    return true;
+  } catch (e) {
+    console.error(e);
+    statusEl.textContent = 'ERR: ' + (e?.message ?? e).toString().slice(0, 24);
+    return false;
+  }
+}
+
+if (location.protocol === 'file:') {
+  document.querySelector('#gate .box').innerHTML = `
+    <h2>RUN ON LOCALHOST</h2>
+    <p>Webcam access is blocked for <code>file://</code> URLs.</p>
+    <p>From this folder, run:</p>
+    <p><code>python3 serve.py</code></p>
+    <p>Then visit <code>http://localhost:8000</code>.</p>
+    <div class="gate-actions">
+      <button id="gate-mouse-fallback">MOUSE MODE</button>
+    </div>
+  `;
+  document.getElementById('gate-mouse-fallback').addEventListener('click', () => {
+    gateEl.classList.add('hidden'); setMode('mouse');
+  });
+} else {
+  gateStartBtn.addEventListener('click', async () => {
+    gateEl.classList.add('hidden');
+    const ok = await tryStartWebcam();
+    if (!ok) {
+      gateEl.classList.remove('hidden');
+      document.querySelector('#gate .box').innerHTML = `
+        <h2>WEBCAM UNAVAILABLE</h2>
+        <p>Permission denied or already in use.</p>
+        <div class="gate-actions">
+          <button id="retry" class="primary">RETRY</button>
+          <button id="gate-mouse-fallback">MOUSE</button>
+        </div>
+      `;
+      document.getElementById('retry').addEventListener('click', () => {
+        gateEl.classList.add('hidden'); tryStartWebcam();
+      });
+      document.getElementById('gate-mouse-fallback').addEventListener('click', () => {
+        gateEl.classList.add('hidden'); setMode('mouse');
+      });
+    }
+  });
+  gateMouseBtn.addEventListener('click', () => {
+    gateEl.classList.add('hidden'); setMode('mouse');
+  });
+}
+
+detectionLoop();
+animate();
+</script>
+</body>
+</html>

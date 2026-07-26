@@ -1,0 +1,545 @@
+{
+  "voxels": [
+    {
+      "x": 5,
+      "y": 9,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 6,
+      "y": 9,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 7,
+      "y": 9,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 8,
+      "y": 9,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 9,
+      "y": 9,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 10,
+      "y": 9,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 10,
+      "y": 8,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 10,
+      "y": 7,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 10,
+      "y": 6,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 10,
+      "y": 5,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 9,
+      "y": 4,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 8,
+      "y": 4,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 8,
+      "y": 3,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 6,
+      "y": 3,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 7,
+      "y": 3,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 7,
+      "y": 2,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 8,
+      "y": 6,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 9,
+      "y": 7,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 7,
+      "y": 7,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 6,
+      "y": 7,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 6,
+      "y": 6,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 6,
+      "y": 10,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 5,
+      "y": 10,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 5,
+      "y": 8,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 6,
+      "y": 11,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 7,
+      "y": 8,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 4,
+      "y": 7,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 3,
+      "y": 7,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 4,
+      "y": 8,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 4,
+      "y": 4,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 4,
+      "y": 5,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 4,
+      "y": 3,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 6,
+      "y": 4,
+      "z": 3,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 7,
+      "y": 8,
+      "z": 15,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 7,
+      "y": 7,
+      "z": 15,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 7,
+      "y": 6,
+      "z": 15,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 7,
+      "y": 5,
+      "z": 15,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 7,
+      "y": 9,
+      "z": 15,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 7,
+      "y": 10,
+      "z": 15,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 6,
+      "y": 8,
+      "z": 15,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 6,
+      "y": 7,
+      "z": 15,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 6,
+      "y": 6,
+      "z": 15,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 5,
+      "y": 6,
+      "z": 15,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 2,
+      "y": 6,
+      "z": 15,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    },
+    {
+      "x": 1,
+      "y": 6,
+      "z": 15,
+      "color": [
+        255,
+        80,
+        80
+      ],
+      "alpha": 1.0,
+      "material": "hologram"
+    }
+  ],
+  "material": "Red"
+}
